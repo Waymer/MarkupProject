@@ -1,4 +1,5 @@
 import re
+import datetime
 class Scorer:
     def __init__(self):
         #Score Modifiers
@@ -91,9 +92,20 @@ class Scorer:
                 frameCount * self.frameScore
 
         print(score)
+    def getFileId(self, filename):
+        nameID = re.search("[^_]*", filename).group(0)
+        if (re.search("\d+[^.]*", filename) != None):
+            originalDateString = re.search("\d+[^.]*", filename).group(0)
+            if (re.search("\d{4}_\d{2}_\d{2}", originalDateString) != None):
+                year = int(originalDateString[:4])
+                month = int(originalDateString[5:7])
+                day = int(originalDateString[8:10])
+                originalDate = datetime.date(year, month, day)
+        #print(originalDate)
 
 sc = Scorer();
-sc.calculateScore("example.html")
+sc.getFileId("bob_2013_02_10.html")
+#sc.getFileId("example.html")
 
 
 #| TagName | Score Modifier | TagName | Score Modifier |
