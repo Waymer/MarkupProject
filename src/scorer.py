@@ -1,5 +1,7 @@
 import re
 import datetime
+import sqlite3
+
 class Scorer:
     def __init__(self):
         #Score Modifiers
@@ -91,17 +93,37 @@ class Scorer:
                 framesetCount * self.framesetScore + \
                 frameCount * self.frameScore
 
-        print(score)
+        return(score)
     def getFileId(self, filename):
         nameID = re.search("[^_]*", filename).group(0)
         if (re.search("\d+[^.]*", filename) != None):
             originalDateString = re.search("\d+[^.]*", filename).group(0)
             if (re.search("\d{4}_\d{2}_\d{2}", originalDateString) != None):
-                year = int(originalDateString[:4])
-                month = int(originalDateString[5:7])
-                day = int(originalDateString[8:10])
-                originalDate = datetime.date(year, month, day)
+                originalDate = datetime.datetime.strptime(originalDateString, "%Y_%m_%d").date()
+                print(originalDate)
         #print(originalDate)
+        return(nameID)
+
+    def addScore(self, filename):
+        db = sqlite3.connect("../schema/markup_db.sqlite")
+        score = calculateScore(self, filename)
+        nameID = getFileId(self, filename)
+        
+
+def createDatabaseTables():
+    db = sqlite3.connect("../schema/markup_db.sqlite")
+    cursor = db.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS master(id INTEGER PRIMARY KEY, key_name TEXT, 
+            score INTEGER, original_date TEXT, run_date TEXT)
+        ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recent(key_name TEXT PRIMARY KEY, score INTEGER)
+        ''')
+    db.commit()
+
+
+
 
 sc = Scorer();
 sc.getFileId("bob_2013_02_10.html")
