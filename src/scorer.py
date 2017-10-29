@@ -96,26 +96,132 @@ class Scorer:
         return(score)
     def getFileId(self, filename):
         nameID = re.search("[^_]*", filename).group(0)
+        originalDate = None
         if (re.search("\d+[^.]*", filename) != None):
             originalDateString = re.search("\d+[^.]*", filename).group(0)
             if (re.search("\d{4}_\d{2}_\d{2}", originalDateString) != None):
                 originalDate = datetime.datetime.strptime(originalDateString, "%Y_%m_%d").date()
-                print(originalDate)
+                #print(originalDate)
         #print(originalDate)
-        return(nameID)
+        return([nameID, originalDate])
 
     def addScore(self, filename):
         db = sqlite3.connect("../schema/markup_db.sqlite")
-        score = calculateScore(self, filename)
-        nameID = getFileId(self, filename)
-        
+        cursor = db.cursor()
+        score = self.calculateScore(filename)
+        IDs = self.getFileId(filename)
+        nameID = IDs[0]
+        originalDate = IDs[1]
+        runDate = datetime.datetime.now()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS {tn}(id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                score INTEGER, original_date TEXT, run_date TEXT)
+        '''\
+        .format(tn = nameID))
+        cursor.execute('''
+            INSERT INTO master(key_name, score, original_date, run_date)
+            VALUES(?,?,?,?)
+        ''', (nameID, score, originalDate, runDate))
+        cursor.execute('''
+            INSERT OR REPLACE INTO recent (key_name, score)
+            VALUES(?,?)
+        ''', (nameID, score))
+        cursor.execute('''
+            INSERT INTO ''' + nameID + ''' (score, original_date, run_date)
+            VALUES(?,?,?)
+            ''', (score, originalDate, runDate))
+        db.commit()
+
+    def test(self):
+        db = sqlite3.connect("../schema/markup_db.sqlite")
+        db.text_factory = str
+        cursor = db.cursor()
+        print("===========master===========")
+        cursor.execute('''
+            SELECT * FROM master 
+            ''')
+        all_rows = cursor.fetchall()
+        print(all_rows)
+        print("===========recent===========")
+        cursor.execute('''
+            SELECT * FROM recent
+            ''')
+        all_rows = cursor.fetchall()
+        print(all_rows)
+        print("===========bob===========")
+        cursor.execute('''
+            SELECT * FROM bob
+            ''')
+        all_rows = cursor.fetchall()
+        print(all_rows)
+        print("===========cari===========")
+        cursor.execute('''
+            SELECT * FROM cari
+            ''')
+        all_rows = cursor.fetchall()
+        print(all_rows)
+        db.commit()
+
+    def getScoreById(self, nameID):
+        db = sqlite3.connect("../schema/markup_db.sqlite")
+        db.text_factory = str
+        cursor = db.cursor()
+        cursor.execute("SELECT score FROM recent WHERE key_name = " + "'" + nameID + "'")
+        #print(statement)
+        #cursor.execute("SELECT * FROM recent WHERE key_name = ?", [nameID])
+        score = cursor.fetchone()[0]
+        return(score)
+
+    def getHighestScore(self):
+        db = sqlite3.connect("../schema/markup_db.sqlite")
+        db.text_factory = str
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT score FROM master ORDER BY score DESC LIMIT 1
+            ''')
+        score = cursor.fetchone()[0]
+        return(score)
+
+    def getLowestScore(self):
+        db = sqlite3.connect("../schema/markup_db.sqlite")
+        db.text_factory = str
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT score FROM master ORDER BY score ASC LIMIT 1
+            ''')
+        score = cursor.fetchone()[0]
+        return(score)
+
+    def getScoresForDates(self, start, end):
+        db = sqlite3.connect("../schema/markup_db.sqlite")
+        db.text_factory = str
+        cursor = db.cursor()
+        cursor.execute("SELECT score FROM master WHERE run_date BETWEEN \'" + start + "\' AND \'" + end + "'")
+        rawScores = cursor.fetchall()
+        scores = []
+        for score in rawScores:
+            scores.append(score[0])
+        return(scores)
+
+    def getAvgScores(self):
+        db = sqlite3.connect("../schema/markup_db.sqlite")
+        db.text_factory = str
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT key_name, AVG(score) FROM master GROUP BY key_name
+            ''')
+        raw = cursor.fetchall()
+        scores = []
+        for record in raw:
+            scores.append([record[0], record[1]])
+        return(scores)
 
 def createDatabaseTables():
     db = sqlite3.connect("../schema/markup_db.sqlite")
     cursor = db.cursor()
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS master(id INTEGER PRIMARY KEY, key_name TEXT, 
-            score INTEGER, original_date TEXT, run_date TEXT)
+        CREATE TABLE IF NOT EXISTS master(id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            key_name TEXT, score INTEGER, original_date TEXT, run_date TEXT)
         ''')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS recent(key_name TEXT PRIMARY KEY, score INTEGER)
@@ -124,9 +230,21 @@ def createDatabaseTables():
 
 
 
-
+createDatabaseTables()
 sc = Scorer();
-sc.getFileId("bob_2013_02_10.html")
+sc.addScore("bob_2013_02_10.html")
+sc.addScore("bob_2013_02_15.html")
+sc.addScore("bob_2013_03_01.html")
+sc.addScore("cari_2013_02_15.html")
+sc.addScore("cari_2013_02_16.html")
+sc.addScore("cari_2013_03_05.html")
+sc.test()
+print('==============================')
+print(sc.getScoreById('cari'))
+print(sc.getLowestScore())
+print(sc.getHighestScore())
+print(sc.getScoresForDates('2017-10-27','2017-10-29'))
+print(sc.getAvgScores())
 #sc.getFileId("example.html")
 
 
