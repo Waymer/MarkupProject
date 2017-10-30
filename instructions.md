@@ -11,4 +11,4 @@
 2. run `python scorer.py`
     a. Database creation is done in the same script, creating a file markup_db.sqlite.
     b. markup_db.sqlite can be deleted for resetting the db/rerunning the script.
-    c. All given html files are added in the script
+    c. All given html files are added in the script, with print statements demonstrating each function output
